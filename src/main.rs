@@ -7,19 +7,48 @@ mod evolutionator;
 
 
 
-#[derive(Default)]
-struct App
+pub struct State
 {
-
     window: Arc<Window>,
+}
+impl State
+{
+    pub async fn new(window: Arc<Window>) -> Result<Self>
+    {
+        Ok(Self {window})
+    }
 
+    pub fn resize()
+    {
+
+    }
+
+    pub fn render()
+    {
+
+    }
 }
 
-impl ApplicationHandler for App
+
+
+pub struct App
+{
+    state: Option<State>,
+}
+
+impl App
+{
+    pub fn new() -> Self
+    {
+        Self {state: None}
+    } // pub fn new
+} // impl App
+
+impl ApplicationHandler<State> for App
 {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop)
-    {
-       self.window = event_loop.create_window(Window::default_attributes()).unwrap();
+    {   
+        let mut window_attributes = Window::default_attributes();
     }
 
     fn window_event(
@@ -52,7 +81,7 @@ fn main() {
 
     el.set_control_flow(ControlFlow::Poll);
 
-    let mut app = App::default();
+    let mut app = App::new();
 
     el.run_app(&mut app);
 
