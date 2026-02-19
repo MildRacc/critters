@@ -6,16 +6,67 @@ use wgpu;
 mod evolutionator;
 
 
-
+#[derive(Clone)]
 pub struct State
 {
+    surface: wgpu::Surface,
+    device: wgpu::Device,
+    queue: wgpu::Queue,
+    config: wgpu::SurfaceConfiguration,
+    is_surface_configured: bool,
     window: Arc<Window>,
 }
 impl State
 {
-    pub async fn new(window: Arc<Window>) -> Result<Self>
+    pub async fn new(window: Arc<Window>) -> anyhow::Result<Self>
     {
-        Ok(Self {window})
+
+        let size = window.inner_size();
+
+        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor{backends: wgpu::Backends::PRIMARY, ..Default::default()});
+
+        let surface = instance.create_surface(window.clone()).unwrap();
+
+        let adapter = instance.request_adapter(&wgpu::RequestAdapterOptions{
+            power_preference: wgpu::PowerPreference::HighPerformance,
+            compatible_surface: Some(&surface),
+            force_fallback_adapter: false
+        }).await?;
+
+        let (device, queue) = adapter.request_device(&wgpu::DeviceDescriptor{
+            label: None,
+            required_features: wgpu::Features::all(),
+            experimental_features: wgpu::ExperimentalFeatures::disabled(),
+            required_limits: wgpu::Limits::defaults(),
+            memory_hints: Default::default(),
+            trace: wgpu::Trace::Off
+        }).await?;
+
+        let surface_caps = surface.get_capabilities(&adapter);
+
+        let surface_format = surface_caps.formats.iter().find(|f| f.is_srgb()).copied().unwrap_or(surface_caps.formats[0]);
+
+        let config = wgpu::SurfaceConfiguration {
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            format: surface_format,
+            width: size.width,
+            height: size.height,
+            present_mode: surface_caps.present_modes[0],
+            alpha_mode: surface_caps.alpha_modes[0],
+            view_formats: vec![],
+            desired_maximum_frame_latency: 2
+        }
+
+        
+
+        Ok(Self {
+            surface,
+            device,
+            queue,
+            config,
+            is_surface_configured: false,
+            window
+        })
     }
 
     pub fn resize()
@@ -27,6 +78,8 @@ impl State
     {
 
     }
+
+    pub fn handle_keys()
 }
 
 
@@ -63,9 +116,10 @@ impl ApplicationHandler<State> for App
             WindowEvent::RedrawRequested => {
                 
                 // Draw here
-                
-                self.window.request_redraw();
-
+                if let Some(state) = self.state.clone()
+                {
+                    state.window.request_redraw();
+                }
             },
 
             _ => (),
@@ -77,7 +131,7 @@ impl ApplicationHandler<State> for App
 fn main() {
     println!("Hello, world!");
 
-    let el = EventLoop::new().unwrap();
+    let el = EventLoop::with_user_event().build().unwrap();
 
     el.set_control_flow(ControlFlow::Poll);
 
