@@ -47,7 +47,6 @@ fn main() {
         simulation::world::init_world.after(simulation::world::setup),
     )); 
     app.add_systems(Update, (simulation::world::player_look, simulation::world::update_resolution));
-    app.add_systems(Update, (simulation::critter::critters_velocity, simulation::critter::move_critters));
 
     app.run();
 

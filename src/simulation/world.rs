@@ -7,7 +7,7 @@ use crate::simulation::{self, critter::{self, PhysicsCritter, ShaderCritter}};
 
 
 
-const CRITTER_COUNT: usize = 6400;
+const CRITTER_COUNT: usize = 1600;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]
 pub struct CritterComputeLabel;
@@ -26,7 +26,14 @@ impl bevy::app::Plugin for ComputePlugin
 
         // Render
         render_app.add_systems(RenderStartup, init_critter_pipeline);
-        render_app.add_systems(Render, prepare_bind_group.in_set(RenderSystems::PrepareBindGroups));
+        render_app.add_systems(
+            Render,
+            prepare_bind_group
+                .in_set(RenderSystems::PrepareBindGroups)
+                .run_if(
+                    not(resource_exists::<GpuBufferBindGroup>)
+                )
+        );
         render_app.add_systems(Render, update.in_set(RenderSystems::Prepare));
 
 
@@ -263,8 +270,8 @@ pub fn init_critter_pipeline(
         &BindGroupLayoutEntries::sequential(
             ShaderStages::COMPUTE,
             (
-                storage_buffer::<critter::GpuCritter>(false),
-                storage_buffer::<critter::GpuCritter>(false),
+                storage_buffer::<Vec<critter::GpuCritter>>(false),
+                storage_buffer::<Vec<critter::GpuCritter>>(false),
                 uniform_buffer::<critter::CritterUniforms>(false)
             )
         )
@@ -339,12 +346,11 @@ fn sync_material_buffer(
 
     if let Some(mat) = materials.get_mut(&world.material_handle)
     {
-        let index = match *state {ShaderState::Update(b) => b as usize};
 
-        mat.critters = if index == 0 {
-            readback.buffer_b.clone()
-        } else {
-            readback.buffer_a.clone()
+        mat.critters = match *state
+        {
+            ShaderState::Update(false) => readback.buffer_b.clone(),
+            ShaderState::Update(true) => readback.buffer_a.clone()
         };
 
         mat.critter_count = CRITTER_COUNT as u32;
